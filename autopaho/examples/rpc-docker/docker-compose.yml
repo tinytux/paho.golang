@@ -1,0 +1,52 @@
+# docker network create --gateway 192.168.222.1 --subnet 192.168.222.0/24 paho-test-net
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    hostname: mosquitto
+    networks:
+      - paho-test-net
+# ports declaration not needed when running under docker but useful for debugging outside of it!
+    ports:
+      - target: 1883
+        published: 1883
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: bind
+        source: ./binds/mosquitto/config
+        target: /mosquitto/config
+        read_only: true
+      - type: bind
+        source: ./binds/mosquitto/data
+        target: /mosquitto/data
+      - type: bind
+        source: ./binds/mosquitto/log
+        target: /mosquitto/log
+  req:
+    # We include the whole paho module in the context because otherwise a separate module would be needed (and this would
+    # pull in github.com/eclipse/paho.golang which makes testing difficult.
+    container_name: req
+    hostname: req
+    build:
+      context: ../../../
+      dockerfile: autopaho/examples/rpc-docker/req/dockerfile
+    networks:
+      - paho-test-net
+  resp:
+    # We include the whole paho module in the context because otherwise a separate module would be needed (and this would
+    # pull in github.com/eclipse/paho.golang which makes testing difficult.
+    container_name: resp
+    hostname: resp
+    build:
+      context: ../../../
+      dockerfile: autopaho/examples/rpc-docker/resp/dockerfile
+    networks:
+      - paho-test-net
+
+# Using a custom network is not required but useful for testing (you can take the network down and see what happens)
+# e.g. `docker network disconnect paho-test-net req`
+networks:
+  paho-test-net:
+    external: false

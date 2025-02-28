@@ -1,0 +1,27 @@
+# Compile stage
+FROM golang:1.23.6-bookworm
+ENV CGO_ENABLED 1
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive \
+    apt-get install --no-install-recommends --assume-yes \
+    build-essential \
+    iproute2 iputils-ping
+
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+ADD . /src
+
+# Note that the docker-compose sets the context to the root of the paho.golang module. We do this because otherwise
+# the publisher would need to be in its own module and import paho.golang (which makes modifying the example difficult)
+# When using this for other code you do not need to do this! (just import `github.com/eclipse/paho.golang` in your code!)
+WORKDIR /src/autopaho/examples/rpc-docker/req
+RUN go build -race -gcflags "all=-N -l" -o /req
+
+ENV GORACE "halt_on_error=1"
+
+# Run
+#CMD ["/req"]
+#CMD [ "/go/bin/dlv", "--listen=:4000", "--headless=true", "--log=true", "--accept-multiclient", "--api-version=2", "exec", "/req" ]
+CMD ["/go/bin/dlv", "--listen=:4000", "--headless=true", "--log=false", "--accept-multiclient", "--api-version=2", "exec", "/req", "--continue"]
+
